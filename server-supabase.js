@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 const sql = require('./db.js');
 
 const app = express();
@@ -9,6 +10,12 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ksqckiygpyyenkqazlou.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_'
+);
 
 // ========== إنشاء الجداول ==========
 async function createTables() {
@@ -105,72 +112,11 @@ async function updateAvailableQty(itemId) {
     }
 }
 
-// ========== دالة تحديث جميع الكميات المتوفرة ==========
-async function updateAllAvailableQtys() {
-    try {
-        await sql`
-            UPDATE Items 
-            SET AvailableQty = (
-                SELECT COALESCE(SUM(AfterQty), 0)
-                FROM Inventory
-                WHERE ItemId = Items.Id
-            )
-        `;
-        console.log('✅ تم تحديث جميع الكميات المتوفرة');
-    } catch (error) {
-        console.error('❌ خطأ:', error);
-    }
-}
-
-// ========== مزامنة الرصيد السابق للمخيم الجديد ==========
-app.post('/api/sync-to-new-camp', async (req, res) => {
-    const { fromCampId, toCampId } = req.body;
-    
-    if (!fromCampId || !toCampId) {
-        return res.status(400).json({ error: 'يجب تحديد المخيم المصدر والمخيم الهدف' });
-    }
-    
-    try {
-        await sql`
-            INSERT INTO Inventory (ItemId, CampId, BeforeQty, AfterQty)
-            SELECT 
-                i.ItemId,
-                ${toCampId} as CampId,
-                i.AfterQty as BeforeQty,
-                0 as AfterQty
-            FROM Inventory i
-            WHERE i.CampId = ${fromCampId}
-            ON CONFLICT (ItemId, CampId) DO UPDATE SET
-                BeforeQty = EXCLUDED.BeforeQty,
-                AfterQty = EXCLUDED.AfterQty
-        `;
-        
-        await updateAllAvailableQtys();
-        
-        res.json({ 
-            success: true, 
-            message: `تم مزامنة الرصيد من المخيم ${fromCampId} إلى المخيم ${toCampId}` 
-        });
-    } catch (error) {
-        console.error('❌ خطأ في المزامنة:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // ========== API Routes للأصناف ==========
 app.get('/api/items', async (req, res) => {
     try {
         const items = await sql`SELECT * FROM Items ORDER BY Id`;
         res.json(items);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.get('/api/items/:id', async (req, res) => {
-    try {
-        const item = await sql`SELECT * FROM Items WHERE Id = ${req.params.id}`;
-        res.json(item[0] || {});
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -196,29 +142,6 @@ app.post('/api/items', async (req, res) => {
         }
         
         res.json({ Id: item.Id });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.put('/api/items/:id', async (req, res) => {
-    const { Name, Unit, Price, RequiredQty } = req.body;
-    try {
-        const result = await sql`
-            UPDATE Items 
-            SET Name = ${Name}, Unit = ${Unit}, Price = ${Price}, RequiredQty = ${RequiredQty} 
-            WHERE Id = ${req.params.id}
-        `;
-        res.json({ updated: result.count });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/api/items/:id', async (req, res) => {
-    try {
-        const result = await sql`DELETE FROM Items WHERE Id = ${req.params.id}`;
-        res.json({ deleted: result.count });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -255,20 +178,6 @@ app.post('/api/camps', async (req, res) => {
         }
         
         res.json({ Id: newCampId });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.put('/api/camps/:id', async (req, res) => {
-    const { Name, StartDate, EndDate, CasesCount } = req.body;
-    try {
-        const result = await sql`
-            UPDATE Camps 
-            SET Name = ${Name}, StartDate = ${StartDate}, EndDate = ${EndDate}, CasesCount = ${CasesCount} 
-            WHERE Id = ${req.params.id}
-        `;
-        res.json({ updated: result.count });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -422,56 +331,6 @@ app.post('/api/payments', async (req, res) => {
     }
 });
 
-app.put('/api/payments/:id', async (req, res) => {
-    const { Name, Specialization, NumberOfDays, DailyAmount, Total, Paid } = req.body;
-    const calculatedTotal = Total || (NumberOfDays * DailyAmount);
-    const remaining = calculatedTotal - (Paid || 0);
-    
-    try {
-        const result = await sql`
-            UPDATE Payments SET 
-                Name = ${Name}, 
-                Specialization = ${Specialization || ''}, 
-                NumberOfDays = ${NumberOfDays || 0}, 
-                DailyAmount = ${DailyAmount || 0}, 
-                Total = ${calculatedTotal}, 
-                Paid = ${Paid || 0}, 
-                Remaining = ${remaining}
-            WHERE Id = ${req.params.id}
-        `;
-        res.json({ updated: result.count });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.put('/api/payments/close/:id', async (req, res) => {
-    try {
-        const result = await sql`UPDATE Payments SET ClosedBalance = 1 WHERE Id = ${req.params.id}`;
-        res.json({ closed: result.count });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.put('/api/payments/reopen/:id', async (req, res) => {
-    try {
-        const result = await sql`UPDATE Payments SET ClosedBalance = 0 WHERE Id = ${req.params.id}`;
-        res.json({ reopened: result.count });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/api/payments/:id', async (req, res) => {
-    try {
-        const result = await sql`DELETE FROM Payments WHERE Id = ${req.params.id}`;
-        res.json({ deleted: result.count });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // ========== Dashboard API ==========
 app.get('/api/dashboard/:campId', async (req, res) => {
     const campId = req.params.campId;
@@ -536,41 +395,11 @@ app.get('/api/dashboard/:campId', async (req, res) => {
     }
 });
 
-// ========== التقارير ==========
-app.get('/api/report/available', async (req, res) => {
-    try {
-        const items = await sql`
-            SELECT Id, Name, Unit, AvailableQty, Price, RequiredQty,
-                   (AvailableQty * Price) as TotalValue
-            FROM Items 
-            ORDER BY AvailableQty DESC
-        `;
-        res.json(items);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.get('/api/report/low-stock', async (req, res) => {
-    const threshold = req.query.threshold || 10;
-    try {
-        const items = await sql`
-            SELECT Id, Name, Unit, AvailableQty, Price, RequiredQty
-            FROM Items 
-            WHERE AvailableQty <= ${threshold}
-            ORDER BY AvailableQty ASC
-        `;
-        res.json(items);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // تشغيل السيرفر
 createTables().then(() => {
     app.listen(port, () => {
         console.log(`\n🚀 السيرفر يعمل على: http://localhost:${port}`);
+        console.log(`🔗 متصل بقاعدة بيانات Supabase`);
         console.log(`📁 مجلد الملفات الثابتة: public/\n`);
-        setTimeout(() => updateAllAvailableQtys(), 1000);
     });
 });
