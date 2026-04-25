@@ -1,0 +1,9 @@
+node_modules/
+.env
+medical.db
+sqlite3.dll
+*.log
+.DS_Store
+vercel.json
+api/
+server.js

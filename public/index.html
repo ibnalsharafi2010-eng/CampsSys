@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>نظام إدارة المخيم الطبي</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .page { display: none; }
+        .page:not(.hidden) { display: block; }
+        .hidden { display: none; }
+        
+        h2 {
+            color: #2c3e50;
+            border-right: 5px solid #4CAF50;
+            padding-right: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .camp-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .camp-info-item {
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+        
+        .camp-info-item span {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+            font-size: 13px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) { background: #f9f9f9; }
+        tr:hover { background: #f5f5f5; }
+        
+        input, select {
+            padding: 5px 8px;
+            margin: 2px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        input:focus, select:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+        
+        button {
+            padding: 6px 12px;
+            margin: 3px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #da190b; }
+        button.warning { background: #ff9800; }
+        button.warning:hover { background: #e68900; }
+        button.info { background: #2196F3; }
+        button.info:hover { background: #0b7dda; }
+        
+        .btn-group {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .status-low {
+            background: #ffcccc !important;
+            font-weight: bold;
+        }
+        
+        .status-normal {
+            background: #e8f5e9 !important;
+        }
+        
+        .summary {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .required-cell {
+            background: #fff3e0;
+            font-weight: bold;
+        }
+        
+        .purchase-cell {
+            background: #ffebee;
+            font-weight: bold;
+        }
+        
+        @media print {
+            button { display: none; }
+            .page { display: block !important; }
+            .hidden { display: block !important; }
+        }
+        
+        .scrollable {
+            overflow-x: auto;
+            max-height: 65vh;
+        }
+        
+        .small-input {
+            width: 80px;
+        }
+        
+        .price-cell {
+            background: #e8f5e9;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        
+        .edit-form {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #4CAF50;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<!-- 🔐 تسجيل الدخول -->
+<div id="loginPage" class="page">
+    <h2>🔐 تسجيل الدخول</h2>
+    <input id="username" placeholder="اسم المستخدم" style="width: 200px;">
+    <input id="password" type="password" placeholder="كلمة المرور" style="width: 200px;">
+    <button onclick="login()">دخول</button>
+    <p id="error" style="color:red"></p>
+</div>
+
+<!-- 🏠 الرئيسية -->
+<div id="homePage" class="page hidden">
+    <h2>🏠 نظام إدارة المخيم الطبي</h2>
+    <div class="btn-group">
+        <button onclick="show('itemsPage')">📦 الأصناف</button>
+        <button onclick="show('purchasesPage')">🛒 المشتريات</button>
+        <button onclick="show('inventoryPage')">📊 الجرد</button>
+        <button onclick="show('paymentsPage')">💰 المستحقات</button>
+        <button onclick="show('campPage')">🏕️ المخيمات</button>
+        <button onclick="show('reportsPage')">📈 التقارير</button>
+        <button onclick="show('dashboardPage')" style="background: #00bcd4;">📈 لوحة التحكم</button>    
+    </div>
+</div>
+
+<!-- 📦 الأصناف -->
+<!-- في صفحة الأصناف - أضف حقل RequiredQty -->
+<!-- في صفحة الأصناف - أضف حقل RequiredQty -->
+<div id="itemsPage" class="page hidden">
+    <h2>📦 الأصناف والكميات المطلوبة للعمل</h2>
+    <div class="edit-form" id="editItemForm" style="display:none;">
+        <h3>✏️ تعديل صنف</h3>
+        <input type="hidden" id="editItemId">
+        <input type="text" id="editItemName" placeholder="اسم الصنف">
+        <input type="text" id="editItemUnit" placeholder="الوحدة">
+        <input type="number" id="editItemPrice" placeholder="السعر" step="0.01">
+        <input type="number" id="editItemRequired" placeholder="المطلوبة للعمل" step="0.5">
+        <button onclick="saveEditItem()">💾 حفظ التعديل</button>
+        <button onclick="cancelEditItem()">❌ إلغاء</button>
+    </div>
+    <div>
+        <input type="text" id="itemName" placeholder="اسم الصنف">
+        <input type="text" id="itemUnit" placeholder="الوحدة">
+        <input type="number" id="itemPrice" placeholder="السعر" step="0.01">
+        <input type="number" id="itemRequired" placeholder="المطلوبة للعمل" step="0.5">
+        <button onclick="addItem()">➕ إضافة</button>
+    </div>
+    <div class="scrollable">
+        <table>
+            <thead>
+                <tr>
+                    <th>م</th><th>اسم الصنف</th><th>الوحدة</th><th>السعر</th>
+                    <th>الرصيد السابق</th><th>الكمية المتوفرة</th><th>المطلوبة للعمل</th><th>تعديل</th><th>حذف</th>
+                </tr>
+            </thead>
+            <tbody id="itemsTable"></tbody>
+        </table>
+    </div>
+    <button onclick="back()">🔙 رجوع</button>
+</div>
+
+<!-- 🏕️ المخيمات -->
+<!-- في صفحة المخيمات - إضافة زر المزامنة -->
+<div id="campPage" class="page hidden">
+    <h2>🏕️ المخيمات</h2>
+    
+    <!-- قسم المزامنة -->
+    <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <h3>🔄 مزامنة الرصيد بين المخيمات</h3>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <select id="sourceCampSelect" style="padding: 8px; width: 200px;">
+                <option value="">اختر المخيم المصدر</option>
+            </select>
+            <span>➡️</span>
+            <select id="targetCampSelect" style="padding: 8px; width: 200px;">
+                <option value="">اختر المخيم الهدف</option>
+            </select>
+            <button onclick="syncToNewCamp()" style="background: #9C27B0;">🔄 مزامنة الرصيد السابق</button>
+        </div>
+        <p style="font-size: 12px; color: #666; margin-top: 10px;">
+            ملاحظة: سيتم جعل الرصيد السابق للمخيم الهدف = الرصيد النهائي للمخيم المصدر
+        </p>
+    </div>
+    
+    <!-- قسم إنشاء مخيم جديد -->
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <h3>➕ إنشاء مخيم جديد</h3>
+        <input id="campName" placeholder="اسم المخيم" style="width: 200px;">
+        <input id="campDate" type="date">
+        <input id="campCases" type="number" placeholder="عدد الحالات" step="1" style="width: 150px;">
+        <button onclick="createCamp()">إنشاء مخيم</button>
+    </div>
+    
+    <h3>📋 المخيمات السابقة</h3>
+    <select id="campSelect" onchange="selectCamp()" style="width: 350px;"></select>
+    <button onclick="enterCamp()">🚪 دخول المخيم</button>
+    <button onclick="back()">🔙 رجوع</button>
+</div>
+
+<!-- 🏕️ إدارة المخيم -->
+<div id="campHome" class="page hidden">
+    <div class="camp-info" id="campInfoHeader">
+        <div class="camp-info-item">🏕️ <span id="currentCampName"></span></div>
+        <div class="camp-info-item">📅 <span id="currentCampDate"></span></div>
+        <div class="camp-info-item">📅 <span id="currentCampEndDate"></span></div>
+        <div class="camp-info-item">👥 عدد الحالات: <span id="currentCampCases"></span></div>
+    </div>
+    <div class="btn-group">
+        <button onclick="show('inventoryPage')">📊 الجرد</button>
+        <button onclick="show('consumptionPage')">📉 الاستهلاك</button>
+        <button onclick="show('purchaseCampPage')">🛒 مشتريات المخيم</button>
+        <button onclick="show('paymentsPage')">💰 المستحقات</button>
+        <button onclick="editCampCases()">✏️ تعديل عدد الحالات</button>
+        <!--input type="file" id="excelInput" accept=".xlsx, .xls" />
+        <button onclick="importInventoryFromExcel(document.getElementById('excelInput'))">
+            بدء الاستيراد
+        </button-->
+               <label>استيراد الجرد:</label>
+        <input type="file" onchange="handleFileUpload(event, 'inventory')" accept=".xlsx" />
+           <label>استيراد الأصناف:</label>
+        <input type="file" onchange="handleFileUpload(event, 'items')" accept=".xlsx" />
+                <label>استيراد المستحقات:</label>
+        <input type="file" onchange="handleFileUpload(event, 'payments')" accept=".xlsx" />
+           <label>استيراد المشتريات:</label>
+        <input type="file" onchange="handleFileUpload(event, 'purchases')" accept=".xlsx" />
+
+        <!--button onclick="refreshRequiredForWork()">🔄 تحديث المطلوبة للعمل</button-->
+		<button onclick="syncBeforeQty()" style="background: #9C27B0;">🔄 مزامنة الرصيد السابق</button>
+    </div>
+    <button onclick="back()">🔙 رجوع</button>
+</div>
+
+<!-- 📊 الجرد -->
+<div id="inventoryPage" class="page hidden">
+    <div class="camp-info" id="inventoryCampInfo">
+        <div class="camp-info-item">🏕️ <span id="invCampName"></span></div>
+        <div class="camp-info-item">📅 <span id="invCampDate"></span></div>
+
+        <div class="camp-info-item">👥 عدد الحالات: <span id="invCampCases"></span></div>
+    </div>
+    <div class="btn-group">
+        <button class="info" onclick="loadInventory()">🔄 تحديث</button>
+        <button class="warning" onclick="calculateAllNeeds()">🧮 حساب المطلوب للشراء</button>
+        <button class="success" onclick="saveAllInventory()">💾 حفظ الكل</button>
+        <button onclick="exportInventoryToExcel()">📊 تصدير Excel</button>
+        <button onclick="printInventory()">🖨️ طباعة</button>
+    </div>
+    <div class="scrollable">
+        <table id="inventoryMainTable">
+            <thead>
+                <tr>
+                    <th style="background:#4CAF50">م</th>
+                    <th style="background:#4CAF50">اسم الصنف</th>
+                    <th style="background:#2196F3">السعر</th>
+                    <th style="background:#2196F3">الرصيد السابق</th>
+                    <th style="background:#ff9800">المستهلك</th>
+                    <th style="background:#2196F3">الرصيد النهائي</th>
+          
+                    <th style="background:#9C27B0">المطلوبة للعمل<br><small>(عدد الحالات × المعيار)</small></th>
+                    <th style="background:#f44336">المطلوب للشراء</th>
+                    <th style="background:#4CAF50">الوحدة</th>
+                    <th style="background:#607D8B">حفظ</th>
+                </tr>
+            </thead>
+            <tbody id="invTable"></tbody>
+            <tfoot id="invFooter" style="background:#e0e0e0; font-weight:bold;"></tfoot>
+        </table>
+    </div>
+    <button onclick="backToCampHome()">🔙 رجوع</button>
+</div>
+
+<!-- 📉 الاستهلاك -->
+<div id="consumptionPage" class="page hidden">
+    <div class="camp-info">
+        <div class="camp-info-item">🏕️ <span id="consCampName"></span></div>
+        <div class="camp-info-item">👥 عدد الحالات: <span id="consCampCases"></span></div>
+    </div>
+    <div class="scrollable">
+        <table>
+            <thead><tr><th>م</th><th>اسم الصنف</th><th>الوحدة</th><th>السعر</th><th>الرصيد السابق</th><th>الرصيد النهائي</th><th>الكمية المستهلكة</th><th>المعيار للحالة</th><th>المطلوب للحالات</th></tr></thead>
+            <tbody id="consTable"></tbody>
+        </table>
+    </div>
+    <button onclick="backToCampHome()">🔙 رجوع</button>
+</div>
+
+<!-- 🛒 مشتريات المخيم -->
+<div id="purchaseCampPage" class="page hidden">
+    <div class="camp-info">
+        <div class="camp-info-item">🏕️ <span id="purchaseCampName"></span></div>
+        <div class="camp-info-item">👥 عدد الحالات: <span id="purchaseCampCases"></span></div>
+    </div>
+    <div class="scrollable">
+        <table>
+            <thead>
+                <tr>
+                    <th>م</th><th>اسم الصنف</th><th>الوحدة</th><th>السعر</th><th>المطلوب للعمل</th>
+                    <th>الكمية المشتراة</th><th>السعر الفعلي</th><th>الإجمالي</th><th>حفظ</th>
+                </tr>
+            </thead>
+            <tbody id="purchaseCampTable"></tbody>
+        </table>
+    </div>
+    <button onclick="backToCampHome()">🔙 رجوع</button>
+</div>
+
+<!-- 🛒 المشتريات العامة -->
+<div id="purchasesPage" class="page hidden">
+    <h2>🛒 المشتريات</h2>
+    <div>
+        <select id="purchaseItem" style="width: 250px;"></select>
+        <input id="qty" placeholder="الكمية" type="number" step="0.5">
+        <input id="price" placeholder="السعر" type="number" step="0.01">
+        <button onclick="addPurchase()">➕ إضافة</button>
+    </div>
+    <div class="scrollable">
+        <tr>
+            <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>التاريخ</th></tr></thead>
+            <tbody id="purchaseTable"></tbody>
+        </table>
+    </div>
+    <button onclick="back()">🔙 رجوع</button>
+</div>
+
+<!-- 💰 المستحقات -->
+<!-- 💰 المستحقات -->
+<div id="paymentsPage" class="page hidden">
+    <div class="camp-info">
+        <div class="camp-info-item">🏕️ <span id="paymentsCampName"></span></div>
+        <div class="camp-info-item">👥 عدد الحالات: <span id="paymentsCampCases"></span></div>
+    </div>
+    
+    <!-- أزرار التحكم -->
+    <div class="btn-group">
+        <button onclick="loadPayments()" class="info">🔄 تحديث</button>
+        <button onclick="showClosedPayments()" class="warning">📋 عرض المغلقة</button>
+        <button onclick="hideClosedPayments()" class="info">👁️ إخفاء المغلقة</button>
+    </div>
+    
+    <!-- نموذج الإضافة -->
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <h3>➕ إضافة مستحق جديد</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+            <input id="payName" placeholder="الإسم" style="padding: 8px;">
+            <input id="paySpecialization" placeholder="التخصص" style="padding: 8px;">
+            <input id="payDays" type="number" placeholder="عدد الأيام" step="1" style="padding: 8px;" onchange="calculatePaymentTotal()">
+            <input id="payDaily" type="number" placeholder="المستحق اليومي" step="0.01" style="padding: 8px;" onchange="calculatePaymentTotal()">
+            <input id="payTotal" type="number" placeholder="الإجمالي" step="0.01" style="padding: 8px; background: #fff3e0;" readonly>
+            <input id="payPaid" type="number" placeholder="المنصرف بيده" step="0.01" style="padding: 8px;" onchange="calculateRemaining()">
+            <input id="payRemaining" type="number" placeholder="المبلغ المتبقي" step="0.01" style="padding: 8px; background: #ffebee;" readonly>
+        </div>
+        <button onclick="addPayment()" style="margin-top: 10px;">➕ إضافة مستحق</button>
+    </div>
+    
+    <!-- جدول المستحقات -->
+    <div class="scrollable">
+        <table id="paymentsTable" style="min-width: 1000px;">
+            <thead>
+                <tr>
+                    <th style="background:#4CAF50; color:white;">رقم المعاملة</th>
+                    <th style="background:#4CAF50; color:white;">الإسم</th>
+                    <th style="background:#4CAF50; color:white;">التخصص</th>
+                    <th style="background:#2196F3; color:white;">عدد الأيام</th>
+                    <th style="background:#2196F3; color:white;">المستحق اليومي</th>
+                    <th style="background:#9C27B0; color:white;">الإجمالي</th>
+                    <th style="background:#ff9800; color:white;">المنصرف</th>
+                    <th style="background:#f44336; color:white;">المتبقي</th>
+                    <th style="background:#607D8B; color:white;">الحالة</th>
+                    <th style="background:#607D8B; color:white;">تعديل</th>
+                    <th style="background:#607D8B; color:white;">حذف</th>
+                </tr>
+            </thead>
+            <tbody id="paymentsTableBody"></tbody>
+            <tfoot id="paymentsFooter" style="background:#e0e0e0; font-weight:bold;"></tfoot>
+        </table>
+    </div>
+    <button onclick="backToCampHome()">🔙 رجوع</button>
+</div>
+<!-- 📈 التقارير -->
+<div id="reportsPage" class="page hidden">
+    <h2>📈 التقارير</h2>
+    <div class="btn-group">
+        <button class="warning" onclick="showLowStockReport()">⚠️ المخزون المنخفض</button>
+        <button class="info" onclick="showAvailableStockReport()">📦 المخزون المتوفر</button>
+        <button onclick="showAllInventoryReport()">📊 تقرير الجرد الكامل</button>
+        <button onclick="showStandardsReport()">📋 تقرير المعايير القياسية</button>
+    </div>
+    <div id="reportContent" style="margin-top: 20px;"></div>
+    <button onclick="back()">🔙 رجوع</button>
+</div>
+<!-- 📊 Dashboard (لوحة التحكم) -->
+<div id="dashboardPage" class="page hidden">
+    <div class="camp-info" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
+        <div class="camp-info-item">🏕️ <span id="dashboardCampName"></span></div>
+        <div class="camp-info-item">📅 من: <span id="dashboardStartDate"></span> إلى: <span id="dashboardEndDate"></span></div>
+        <div class="camp-info-item">👥 عدد الحالات: <span id="dashboardCasesCount"></span></div>
+    </div>
+    
+    <!-- بطاقات الإحصائيات -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; text-align: center;">
+            <h3 style="margin: 0; color: #1565c0;">📦 إجمالي الرصيد السابق</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0 0;" id="totalBefore">0</p>
+        </div>
+        <div style="background: #fff3e0; padding: 15px; border-radius: 10px; text-align: center;">
+            <h3 style="margin: 0; color: #e65100;">📉 إجمالي المستهلك</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0 0;" id="totalConsumption">0</p>
+        </div>
+        <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; text-align: center;">
+            <h3 style="margin: 0; color: #2e7d32;">📊 إجمالي الرصيد النهائي</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0 0;" id="totalAfter">0</p>
+        </div>
+        <div style="background: #ffebee; padding: 15px; border-radius: 10px; text-align: center;">
+            <h3 style="margin: 0; color: #c62828;">🛒 إجمالي المطلوب للشراء</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0 0;" id="totalToPurchase">0</p>
+        </div>
+        <div style="background: #f3e5f5; padding: 15px; border-radius: 10px; text-align: center;">
+            <h3 style="margin: 0; color: #6a1b9a;">💰 إجمالي المشتريات</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0 0;" id="totalPurchasesValue">0 ريال</p>
+        </div>
+        <div style="background: #e0f7fa; padding: 15px; border-radius: 10px; text-align: center;">
+            <h3 style="margin: 0; color: #00838f;">💵 إجمالي المستحقات</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0 0;" id="totalPayments">0 ريال</p>
+        </div>
+    </div>
+    
+    <!-- أزرار التحكم -->
+    <div class="btn-group">
+        <button onclick="exportDashboardToExcel()" style="background: #28a745;">📊 تصدير Excel</button>
+        <button onclick="printDashboard()" style="background: #17a2b8;">🖨️ طباعة</button>
+        <button onclick="backToCampHome()" style="background: #6c757d;">🔙 رجوع</button>
+    </div>
+    
+    <!-- جدول الجرد -->
+    <h2 style="background: #2196F3; color: white; padding: 10px; border-radius: 8px;">📊 جرد الأصناف</h2>
+    <div class="scrollable">
+        <table id="dashboardInventoryTable" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>م</th><th>اسم الصنف</th><th>الوحدة</th><th>السعر</th>
+                    <th>الرصيد السابق</th><th>الرصيد النهائي</th><th>المستهلك</th>
+                    <th>المطلوبة للعمل</th><th>المطلوب للشراء</th>
+                </tr>
+            </thead>
+            <tbody id="dashboardInventoryBody"></tbody>
+            <tfoot id="dashboardInventoryFooter" style="background: #e0e0e0;"></tfoot>
+        </table>
+    </div>
+    
+    <!-- جدول المشتريات -->
+    <h2 style="background: #ff9800; color: white; padding: 10px; border-radius: 8px; margin-top: 20px;">🛒 المشتريات</h2>
+    <div class="scrollable">
+        <table id="dashboardPurchasesTable" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>م</th><th>اسم الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>التاريخ</th>
+                </tr>
+            </thead>
+            <tbody id="dashboardPurchasesBody"></tbody>
+            <tfoot id="dashboardPurchasesFooter" style="background: #e0e0e0;"></tfoot>
+        </table>
+    </div>
+    
+    <!-- جدول المستحقات -->
+    <h2 style="background: #9C27B0; color: white; padding: 10px; border-radius: 8px; margin-top: 20px;">💰 المستحقات المالية</h2>
+    <div class="scrollable">
+        <table id="dashboardPaymentsTable" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>رقم المعاملة</th><th>الإسم</th><th>التخصص</th><th>عدد الأيام</th>
+                    <th>المستحق اليومي</th><th>الإجمالي</th><th>المنصرف</th><th>المتبقي</th><th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody id="dashboardPaymentsBody"></tbody>
+            <tfoot id="dashboardPaymentsFooter" style="background: #e0e0e0;"></tfoot>
+        </table>
+    </div>
+</div>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:3000/api';
+    let currentCamps = [];
+    let currentCampData = null;
+
+    // ========== دوال عامة ==========
+    function show(page) {
+        document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+        document.getElementById(page).classList.remove("hidden");
+        
+        if (page === "itemsPage") loadItems();
+        if (page === "campPage") loadCamps();
+        if (page === "inventoryPage") loadInventory();
+        if (page === "consumptionPage") loadConsumption();
+        if (page === "purchaseCampPage") loadPurchaseCamp();
+        if (page === "purchasesPage") loadPurchases();
+        if (page === "paymentsPage") loadPayments();
+        if (page === "dashboardPage") showDashboard();
+    }
+
+    function back() { show("homePage"); }
+    function backToCampHome() { show("campHome"); }
+
+    function login() {
+        let u = username.value;
+        let p = password.value;
+        if (u === "Sadeq" && p === "Sadeq@1982") {
+            show("homePage");
+        } else {
+            error.innerText = "بيانات خاطئة";
+        }
+    }
+
+    // ========== الأصناف ==========
+async function loadItems() {
+    let res = await fetch(`${API_URL}/items`);
+    let items = await res.json();
+    let itemsTable = document.getElementById("itemsTable");
+    let purchaseItem = document.getElementById("purchaseItem");
+    itemsTable.innerHTML = "";
+    purchaseItem.innerHTML = "";
+    
+    items.forEach((item, idx) => {
+        let statusClass = (item.AvailableQty || 0) < 10 ? 'status-low' : 'status-normal';
+        itemsTable.innerHTML += `
+            <tr>
+                <td>${idx+1}</td>
+                <td>${item.Name}</td>
+                <td>${item.Unit}</td>
+                <td class="price-cell">${item.Price || 0} ريال</td>
+                <td class="status-normal">${item.AvailableQty || 0} ${item.Unit}</td>
+                <td class="${statusClass}">${item.AvailableQty || 0} ${item.Unit}</td>
+                <td class="required-cell">${item.RequiredQty || 0} ${item.Unit}</td>
+                <td><button class="info" onclick="openEditItem(${item.Id})">✏️</button></td>
+                <td><button class="danger" onclick="deleteItem(${item.Id})">🗑️</button></td>
+            </tr>
+        `;
+        purchaseItem.innerHTML += `<option value="${item.Id}">${item.Name} (${item.AvailableQty || 0} ${item.Unit}) - ${item.Price || 0} ريال</option>`;
+    });
+}
+
+function openEditItem(id) {
+    fetch(`${API_URL}/items/${id}`)
+        .then(res => res.json())
+        .then(item => {
+            document.getElementById("editItemId").value = item.Id;
+            document.getElementById("editItemName").value = item.Name;
+            document.getElementById("editItemUnit").value = item.Unit;
+            document.getElementById("editItemPrice").value = item.Price;
+            document.getElementById("editItemRequired").value = item.RequiredQty;
+            document.getElementById("editItemForm").style.display = "block";
+        });
+}
+// ========== Dashboard ==========
+
+async function showDashboard() {
+    let campId = localStorage.getItem("campId");
+    if (!campId) {
+        alert("اختر مخيماً أولاً");
+        return;
+    }
+    
+    show("dashboardPage");
+    
+    let res = await fetch(`${API_URL}/dashboard/${campId}`);
+    let data = await res.json();
+    
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+    
+    // عرض معلومات المخيم
+    document.getElementById("dashboardCampName").innerText = data.camp.Name;
+    document.getElementById("dashboardStartDate").innerText = data.camp.StartDate || "-";
+    document.getElementById("dashboardEndDate").innerText = data.camp.EndDate || "-";
+    document.getElementById("dashboardCasesCount").innerText = data.camp.CasesCount || 0;
+    
+    // عرض الإحصائيات
+    document.getElementById("totalBefore").innerText = data.totals.totalBefore.toFixed(2);
+    document.getElementById("totalConsumption").innerText = data.totals.totalConsumption.toFixed(2);
+    document.getElementById("totalAfter").innerText = data.totals.totalAfter.toFixed(2);
+    document.getElementById("totalToPurchase").innerText = data.totals.totalToPurchase.toFixed(2);
+    document.getElementById("totalPurchasesValue").innerText = data.totals.totalPurchasesValue.toFixed(2);
+    document.getElementById("totalPayments").innerText = data.totals.totalPayments.toFixed(2);
+    
+    // عرض جدول الجرد
+    let inventoryBody = document.getElementById("dashboardInventoryBody");
+    inventoryBody.innerHTML = "";
+    let invTotalBefore = 0, invTotalAfter = 0, invTotalConsumption = 0, invTotalToPurchase = 0;
+    
+    data.inventory.forEach((item, idx) => {
+        let toPurchase = item.ToPurchase < 0 ? 0 : item.ToPurchase;
+        invTotalBefore += item.BeforeQty;
+        invTotalAfter += item.AfterQty;
+        invTotalConsumption += item.Consumption;
+        invTotalToPurchase += toPurchase;
+        
+        inventoryBody.innerHTML += `
+            <tr>
+                <td>${idx+1}</td>
+                <td>${item.Name}</td>
+                <td>${item.Unit}</td>
+                <td>${item.Price || 0} ريال</td>
+                <td>${item.BeforeQty}</td>
+                <td>${item.AfterQty}</td>
+                <td style="background:#fff3e0; font-weight:bold;">${item.Consumption}</td>
+                <td>${item.RequiredQty || 0}</td>
+                <td style="background:#ffebee; font-weight:bold;">${toPurchase}</td>
+            </tr>
+        `;
+    });
+    
+    document.getElementById("dashboardInventoryFooter").innerHTML = `
+        <tr>
+            <td colspan="4"><strong>الإجمالي</strong></td>
+            <td><strong>${invTotalBefore.toFixed(2)}</strong></td>
+            <td><strong>${invTotalAfter.toFixed(2)}</strong></td>
+            <td><strong>${invTotalConsumption.toFixed(2)}</strong></td>
+            <td><strong>${data.totals.totalToPurchase.toFixed(2)}</strong></td>
+            <td></td>
+        </tr>
+    `;
+    
+    // عرض جدول المشتريات
+    let purchasesBody = document.getElementById("dashboardPurchasesBody");
+    purchasesBody.innerHTML = "";
+    let purchasesTotal = 0;
+    
+    data.purchases.forEach((p, idx) => {
+        let total = p.Qty * p.Price;
+        purchasesTotal += total;
+        purchasesBody.innerHTML += `
+            <tr>
+                <td>${idx+1}</td>
+                <td>${p.ItemName}</td>
+                <td>${p.Qty} ${p.Unit}</td>
+                <td>${p.Price} ريال</td>
+                <td>${total.toFixed(2)} ريال</td>
+                <td>${new Date(p.Date).toLocaleDateString('ar')}</td>
+            </tr>
+        `;
+    });
+    
+    document.getElementById("dashboardPurchasesFooter").innerHTML = `
+        <tr>
+            <td colspan="4"><strong>الإجمالي</strong></td>
+            <td><strong>${purchasesTotal.toFixed(2)} ريال</strong></td>
+            <td></td>
+        </tr>
+    `;
+    
+    // عرض جدول المستحقات
+    let paymentsBody = document.getElementById("dashboardPaymentsBody");
+    paymentsBody.innerHTML = "";
+    let paymentsTotal = 0, paymentsPaid = 0, paymentsRemaining = 0;
+    
+    data.payments.forEach(p => {
+        paymentsTotal += p.Total;
+        paymentsPaid += p.Paid;
+        paymentsRemaining += p.Remaining;
+        
+        let statusBadge = p.ClosedBalance === 1 
+            ? '<span style="background:#4CAF50; color:white; padding:3px 8px; border-radius:5px;">✅ مغلق</span>'
+            : '<span style="background:#ff9800; color:white; padding:3px 8px; border-radius:5px;">🟡 مفتوح</span>';
+        
+        paymentsBody.innerHTML += `
+            <tr style="${p.ClosedBalance === 1 ? 'background:#e8f5e9;' : ''}">
+                <td>${p.TransNo || '-'}</td>
+                <td>${p.Name}</td>
+                <td>${p.Specialization || '-'}</td>
+                <td>${p.NumberOfDays || 0}</td>
+                <td>${p.DailyAmount || 0} ريال</td>
+                <td>${p.Total} ريال</td>
+                <td>${p.Paid} ريال</td>
+                <td style="background:#ffebee; font-weight:bold;">${p.Remaining} ريال</td>
+                <td>${statusBadge}</td>
+            </table>
+        `;
+    });
+    
+    document.getElementById("dashboardPaymentsFooter").innerHTML = `
+        <tr>
+            <td colspan="5"><strong>الإجمالي العام</strong></td>
+            <td><strong>${paymentsTotal.toFixed(2)} ريال</strong></td>
+            <td><strong>${paymentsPaid.toFixed(2)} ريال</strong></td>
+            <td><strong>${paymentsRemaining.toFixed(2)} ريال</strong></td>
+            <td></td>
+        </tr>
+    `;
+}
+
+// تصدير Dashboard إلى Excel
+function exportDashboardToExcel() {
+    let campName = document.getElementById("dashboardCampName").innerText;
+    let html = `
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير المخيم ${campName}</title>
+            <style>
+                th { background: #4CAF50; color: white; }
+                td { border: 1px solid #ddd; }
+            </style>
+        </head>
+        <body>
+            <h2>تقرير المخيم: ${campName}</h2>
+            <h3>الإحصائيات</h3>
+            <table border="1">
+                <tr><th>البيان</th><th>القيمة</th></tr>
+                <tr><td>إجمالي الرصيد السابق</td><td>${document.getElementById("totalBefore").innerText}</td></tr>
+                <tr><td>إجمالي المستهلك</td><td>${document.getElementById("totalConsumption").innerText}</td></tr>
+                <tr><td>إجمالي الرصيد النهائي</td><td>${document.getElementById("totalAfter").innerText}</td></tr>
+                <tr><td>إجمالي المطلوب للشراء</td><td>${document.getElementById("totalToPurchase").innerText}</td></tr>
+                <tr><td>إجمالي المشتريات</td><td>${document.getElementById("totalPurchasesValue").innerText}</td></tr>
+                <tr><td>إجمالي المستحقات</td><td>${document.getElementById("totalPayments").innerText}</td></tr>
+            </table>
+            ${document.getElementById("dashboardInventoryTable").outerHTML}
+            ${document.getElementById("dashboardPurchasesTable").outerHTML}
+            ${document.getElementById("dashboardPaymentsTable").outerHTML}
+        </body>
+        </html>
+    `;
+    
+    let blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `تقرير_المخيم_${campName}.xls`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// طباعة Dashboard
+function printDashboard() {
+    let campName = document.getElementById("dashboardCampName").innerText;
+    let printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير المخيم ${campName}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                th { background: #4CAF50; color: white; padding: 8px; }
+                td { border: 1px solid #ddd; padding: 6px; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+                @media print { button { display: none; } }
+            </style>
+        </head>
+        <body>
+            <h2>تقرير المخيم: ${campName}</h2>
+            ${document.getElementById("dashboardInventoryTable").outerHTML}
+            ${document.getElementById("dashboardPurchasesTable").outerHTML}
+            ${document.getElementById("dashboardPaymentsTable").outerHTML}
+            <p style="margin-top: 30px;">التوقيع: _______________</p>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+async function saveEditItem() {
+    let id = document.getElementById("editItemId").value;
+    let updatedItem = {
+        Name: document.getElementById("editItemName").value,
+        Unit: document.getElementById("editItemUnit").value,
+        Price: parseFloat(document.getElementById("editItemPrice").value) || 0,
+        RequiredQty: parseFloat(document.getElementById("editItemRequired").value) || 0
+    };
+    
+    await fetch(`${API_URL}/items/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedItem)
+    });
+    
+    cancelEditItem();
+    loadItems();
+    alert("✅ تم تعديل الصنف بنجاح");
+}
+
+async function addItem() {
+    if (!itemName.value || !itemUnit.value) {
+        alert("يرجى ملء اسم الصنف والوحدة");
+        return;
+    }
+    await fetch(`${API_URL}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            Name: itemName.value,
+            Unit: itemUnit.value,
+            Price: parseFloat(itemPrice.value) || 0,
+            RequiredQty: parseFloat(itemRequired.value) || 0
+        })
+    });
+    loadItems();
+    itemName.value = ""; itemUnit.value = ""; itemPrice.value = ""; itemRequired.value = "";
+}
+    
+    function cancelEditItem() {
+        document.getElementById("editItemForm").style.display = "none";
+        document.getElementById("editItemId").value = "";
+        document.getElementById("editItemName").value = "";
+        document.getElementById("editItemUnit").value = "";
+        document.getElementById("editItemPrice").value = "";
+        document.getElementById("editItemStandard").value = "";
+    }
+
+    // async function addItem() {
+    //     if (!itemName.value || !itemUnit.value) {
+    //         alert("يرجى ملء اسم الصنف والوحدة");
+    //         return;
+    //     }
+    //     await fetch(`${API_URL}/items`, {
+    //         method: 'POST',
+    //         headers: { 'Content-Type': 'application/json' },
+    //         body: JSON.stringify({
+    //             Name: itemName.value,
+    //             Unit: itemUnit.value,
+    //             Price: parseFloat(itemPrice.value) || 0,
+    //             StandardPerCase: parseFloat(itemStandard.value) || 0
+    //         })
+    //     });
+    //     loadItems();
+    //     itemName.value = ""; itemUnit.value = ""; itemPrice.value = ""; itemStandard.value = "";
+    // }
+
+    async function deleteItem(id) {
+        if (confirm("هل تريد حذف هذا الصنف؟")) {
+            await fetch(`${API_URL}/items/${id}`, { method: 'DELETE' });
+            loadItems();
+        }
+    }
+
+    // ========== المخيمات ==========
+    
+
+
+
+    async function selectCamp() {
+        let campId = campSelect.value;
+        if (campId) {
+            localStorage.setItem("campId", campId);
+            let camp = currentCamps.find(c => c.Id == campId);
+            if (camp) {
+                currentCampData = camp;
+                updateCampDisplay(camp);
+            }
+        }
+    }
+
+    function updateCampDisplay(camp) {
+        document.getElementById("currentCampName").innerText = camp.Name;
+        document.getElementById("currentCampDate").innerText = camp.StartDate || "غير محدد";
+        document.getElementById("currentCampEndDate").innerText = camp.EndDate || "غير محدد";
+        document.getElementById("currentCampCases").innerText = camp.CasesCount || 0;
+        
+        document.getElementById("invCampName").innerText = camp.Name;
+        document.getElementById("invCampDate").innerText = camp.StartDate || "غير محدد";
+        document.getElementById("invCampEndDate").innerText = camp.EndDate || "غير محدد";
+        document.getElementById("invCampCases").innerText = camp.CasesCount || 0;
+        
+        document.getElementById("consCampName").innerText = camp.Name;
+        document.getElementById("consCampCases").innerText = camp.CasesCount || 0;
+        
+        document.getElementById("purchaseCampName").innerText = camp.Name;
+        document.getElementById("purchaseCampCases").innerText = camp.CasesCount || 0;
+        
+        document.getElementById("paymentsCampName").innerText = camp.Name;
+        document.getElementById("paymentsCampCases").innerText = camp.CasesCount || 0;
+    }
+
+    function enterCamp() {
+        let campId = localStorage.getItem("campId");
+        if (campId) {
+            show("campHome");
+        } else {
+            alert("اختر مخيماً أولاً");
+        }
+    }
+
+    async function editCampCases() {
+        let newCases = prompt("أدخل عدد الحالات الجديد:", currentCampData?.CasesCount || 0);
+        if (newCases !== null && currentCampData) {
+            await fetch(`${API_URL}/camps/${currentCampData.Id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...currentCampData,
+                    CasesCount: parseInt(newCases) || 0
+                })
+            });
+            await loadCamps();
+            await selectCamp();
+            await loadInventory();
+            alert("✅ تم تحديث عدد الحالات والمطلوبة للعمل");
+        }
+    }
+    
+    async function refreshRequiredForWork() {
+        await loadInventory();
+        alert("✅ تم تحديث المطلوبة للعمل حسب عدد الحالات الجديد");
+    }
+
+    // ========== الجرد ==========
+async function loadInventory() {
+    let campId = localStorage.getItem("campId");
+    if (!campId) { alert("اختر مخيماً أولاً"); return; }
+    
+    let res = await fetch(`${API_URL}/inventory/${campId}`);
+    let data = await res.json();
+    let invTable = document.getElementById("invTable");
+    invTable.innerHTML = "";
+    
+    let totalConsumption = 0, totalNeeded = 0, totalPurchase = 0;
+    
+    for (let item of data) {
+        let consumption = (item.BeforeQty || 0) - (item.AfterQty || 0);
+        let requiredForWork = item.RequiredForWork || 0;  // من RequiredQty في Items
+        let toPurchase = requiredForWork - (item.AfterQty || 0);
+        if (toPurchase < 0) toPurchase = 0;
+        
+        totalConsumption += consumption;
+        totalNeeded += requiredForWork;
+        totalPurchase += toPurchase;
+        
+        invTable.innerHTML += `
+            <tr id="row-${item.Id}">
+                <td>${invTable.children.length + 1}</td>
+                <td>${item.Name}</td>
+                <td class="price-cell">${item.Price || 0} ریال</td>
+                <td><input type="number" id="before-${item.Id}" value="${item.BeforeQty || 0}" step="0.5" class="small-input" onchange="calculateRow(${item.Id})"></td>
+                <td id="consumption-${item.Id}">${consumption}</td>
+                <td><input type="number" id="after-${item.Id}" value="${item.AfterQty || 0}" step="0.5" class="small-input" onchange="calculateRow(${item.Id})"></td>
+             
+                <td class="required-cell" id="required-${item.Id}">${requiredForWork} ${item.Unit}</td>
+                <td class="purchase-cell" id="purchase-${item.Id}">${toPurchase}</td>
+                <td>${item.Unit}</td>
+                <td><button class="info" onclick="saveInventoryRow(${item.Id})">💾 حفظ</button></td>
+            </tr>
+        `;
+    }
+    
+    document.getElementById("invFooter").innerHTML = `
+        <tr>
+            <td colspan="3"><strong>الإجمالي</strong></td>
+            <td><strong id="totalBefore">-</strong></td>
+            <td><strong id="totalConsumption">${totalConsumption}</strong></td>
+            <td><strong id="totalAfter">-</strong></td>
+      
+            <td><strong id="totalNeeded">${totalNeeded}</strong></td>
+            <td><strong id="totalPurchase">${totalPurchase}</strong></td>
+            <td colspan="2"></td>
+        </tr>
+    `;
+}
+
+    function calculateRow(itemId) {
+        let before = parseFloat(document.getElementById(`before-${itemId}`).value) || 0;
+        let after = parseFloat(document.getElementById(`after-${itemId}`).value) || 0;
+        let requiredElem = document.getElementById(`required-${itemId}`);
+        let required = parseFloat(requiredElem.innerText.split(' ')[0]) || 0;
+        
+        let consumption = before - after;
+        let toPurchase = required - after;
+        if (toPurchase < 0) toPurchase = 0;
+        
+        document.getElementById(`consumption-${itemId}`).innerText = consumption;
+        document.getElementById(`purchase-${itemId}`).innerText = toPurchase;
+        
+        calculateTotals();
+    }
+
+    function calculateTotals() {
+        let rows = document.querySelectorAll("#invTable tr");
+        let totalConsumption = 0, totalNeeded = 0, totalPurchase = 0;
+        
+        rows.forEach(row => {
+            let consCell = row.cells[4];
+            let neededCell = row.cells[6];
+            let purchaseCell = row.cells[7];
+            
+            if (consCell && consCell.innerText) totalConsumption += parseFloat(consCell.innerText) || 0;
+            if (neededCell && neededCell.innerText) {
+                let neededVal = parseFloat(neededCell.innerText.split(' ')[0]) || 0;
+                totalNeeded += neededVal;
+            }
+            if (purchaseCell && purchaseCell.innerText) totalPurchase += parseFloat(purchaseCell.innerText) || 0;
+        });
+        
+        document.getElementById("totalConsumption").innerText = totalConsumption;
+        document.getElementById("totalNeeded").innerText = totalNeeded;
+        document.getElementById("totalPurchase").innerText = totalPurchase;
+    }
+
+    function calculateAllNeeds() {
+        let rows = document.querySelectorAll("#invTable tr");
+        rows.forEach(row => {
+            let afterInput = row.querySelector('input[id^="after-"]');
+            let requiredCell = row.cells[6];
+            let purchaseCell = row.cells[7];
+            
+            if (afterInput && requiredCell && purchaseCell) {
+                let after = parseFloat(afterInput.value) || 0;
+                let required = parseFloat(requiredCell.innerText.split(' ')[0]) || 0;
+                let toPurchase = required - after;
+                if (toPurchase < 0) toPurchase = 0;
+                purchaseCell.innerText = toPurchase;
+            }
+        });
+        calculateTotals();
+        alert("✅ تم حساب المطلوب للشراء لجميع الأصناف");
+    }
+
+    async function saveInventoryRow(itemId) {
+        let campId = localStorage.getItem("campId");
+        let before = parseFloat(document.getElementById(`before-${itemId}`).value) || 0;
+        let after = parseFloat(document.getElementById(`after-${itemId}`).value) || 0;
+        
+        await fetch(`${API_URL}/inventory`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ItemId: itemId,
+                CampId: parseInt(campId),
+                BeforeQty: before,
+                AfterQty: after
+            })
+        });
+        alert("✅ تم حفظ البيانات");
+        loadInventory();
+    }
+
+    async function saveAllInventory() {
+        let rows = document.querySelectorAll("#invTable tr");
+        for (let row of rows) {
+            let saveBtn = row.querySelector('button[onclick^="saveInventoryRow"]');
+            if (saveBtn) {
+                let onclick = saveBtn.getAttribute('onclick');
+                let match = onclick.match(/\d+/);
+                if (match) await saveInventoryRow(parseInt(match[0]));
+            }
+        }
+        alert("✅ تم حفظ جميع البيانات");
+    }
+
+    // ========== الاستهلاك ==========
+    async function loadConsumption() {
+        let campId = localStorage.getItem("campId");
+        if (!campId) return;
+        
+        let res = await fetch(`${API_URL}/inventory/${campId}`);
+        let data = await res.json();
+        let consTable = document.getElementById("consTable");
+        consTable.innerHTML = "";
+        
+        data.forEach((item, idx) => {
+            let consumption = (item.BeforeQty || 0) - (item.AfterQty || 0);
+            consTable.innerHTML += `<tr>
+                <td>${idx+1}</td>
+                <td>${item.Name}</td>
+                <td>${item.Unit}</td>
+                <td class="price-cell">${item.Price || 0}</td>
+                <td>${item.BeforeQty || 0}</td>
+                <td>${item.AfterQty || 0}</td>
+                <td>${consumption}</td>
+                <td>${item.StandardPerCase || 0}</td>
+                <td>${item.RequiredForWork || 0}</td>
+            </tr>`;
+        });
+    }
+
+    // ========== مشتريات المخيم ==========
+    async function loadPurchaseCamp() {
+        let campId = localStorage.getItem("campId");
+        if (!campId) return;
+        
+        let res = await fetch(`${API_URL}/inventory/${campId}`);
+        let data = await res.json();
+        let purchaseCampTable = document.getElementById("purchaseCampTable");
+        purchaseCampTable.innerHTML = "";
+        
+        data.forEach((item, idx) => {
+            let needed = item.RequiredForWork || 0;
+            purchaseCampTable.innerHTML += `
+                <tr id="purchase-row-${item.Id}">
+                    <td>${idx+1}</td>
+                    <td>${item.Name}</td>
+                    <td>${item.Unit}</td>
+                    <td class="price-cell">${item.Price || 0} ریال</td>
+                    <td>${needed}</td>
+                    <td><input type="number" id="purchase-qty-${item.Id}" step="0.5" class="small-input" placeholder="الكمية" onchange="updatePurchaseTotal(${item.Id})"></td>
+                    <td><input type="number" id="purchase-price-${item.Id}" step="0.01" class="small-input" placeholder="السعر" onchange="updatePurchaseTotal(${item.Id})" value="${item.Price || 0}"></td>
+                    <td id="purchase-total-${item.Id}">0</td>
+                    <td><button class="info" onclick="savePurchaseCamp(${item.Id})">💾 حفظ</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    function updatePurchaseTotal(itemId) {
+        let qty = parseFloat(document.getElementById(`purchase-qty-${itemId}`).value) || 0;
+        let price = parseFloat(document.getElementById(`purchase-price-${itemId}`).value) || 0;
+        let total = qty * price;
+        document.getElementById(`purchase-total-${itemId}`).innerText = total.toFixed(2);
+    }
+
+    async function savePurchaseCamp(itemId) {
+        let campId = localStorage.getItem("campId");
+        let qty = parseFloat(document.getElementById(`purchase-qty-${itemId}`).value) || 0;
+        let price = parseFloat(document.getElementById(`purchase-price-${itemId}`).value) || 0;
+        
+        if (qty <= 0) return alert("أدخل كمية صحيحة");
+        
+        await fetch(`${API_URL}/purchases`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ItemId: itemId,
+                Qty: qty,
+                Price: price,
+                CampId: parseInt(campId),
+                Date: new Date().toISOString()
+            })
+        });
+        alert("✅ تم حفظ الشراء");
+        loadPurchaseCamp();
+        loadInventory();
+    }
+
+    // ========== المشتريات العامة ==========
+    async function addPurchase() {
+        let campId = localStorage.getItem("campId");
+        if (!campId) return alert("اختر مخيماً أولاً");
+        if (!purchaseItem.value || !qty.value) return alert("يرجى ملء البيانات");
+        
+        await fetch(`${API_URL}/purchases`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ItemId: parseInt(purchaseItem.value),
+                Qty: parseFloat(qty.value),
+                Price: parseFloat(price.value) || 0,
+                CampId: parseInt(campId),
+                Date: new Date().toISOString()
+            })
+        });
+        loadPurchases();
+        loadInventory();
+        qty.value = ""; price.value = "";
+    }
+
+    async function loadPurchases() {
+        let campId = localStorage.getItem("campId");
+        if (!campId) return;
+        
+        let res = await fetch(`${API_URL}/purchases/${campId}`);
+        let data = await res.json();
+        let purchaseTable = document.getElementById("purchaseTable");
+        purchaseTable.innerHTML = "";
+        
+        data.forEach(p => {
+            purchaseTable.innerHTML += `<tr>
+                <td>${p.ItemName}</td>
+                <td>${p.Qty} ${p.Unit}</td>
+                <td>${p.Price} ریال</td>
+                <td>${(p.Qty * p.Price).toFixed(2)} ریال</td>
+                <td>${new Date(p.Date).toLocaleDateString('ar')}</td>
+            </tr>`;
+        });
+    }
+
+    // ========== المستحقات ==========
+ // ========== المستحقات (Payments) ==========
+
+// حساب الإجمالي تلقائياً
+function calculatePaymentTotal() {
+    let days = parseFloat(document.getElementById("payDays").value) || 0;
+    let daily = parseFloat(document.getElementById("payDaily").value) || 0;
+    let total = days * daily;
+    document.getElementById("payTotal").value = total.toFixed(2);
+    calculateRemaining();
+}
+
+// حساب المتبقي تلقائياً
+function calculateRemaining() {
+    let total = parseFloat(document.getElementById("payTotal").value) || 0;
+    let paid = parseFloat(document.getElementById("payPaid").value) || 0;
+    let remaining = total - paid;
+    document.getElementById("payRemaining").value = remaining.toFixed(2);
+}
+
+// إضافة مستحق جديد
+async function addPayment() {
+    let campId = localStorage.getItem("campId");
+    if (!campId) return alert("اختر مخيماً أولاً");
+    
+    let name = document.getElementById("payName").value;
+    if (!name) return alert("أدخل الإسم");
+    
+    let specialization = document.getElementById("paySpecialization").value;
+    let days = parseFloat(document.getElementById("payDays").value) || 0;
+    let daily = parseFloat(document.getElementById("payDaily").value) || 0;
+    let total = parseFloat(document.getElementById("payTotal").value) || (days * daily);
+    let paid = parseFloat(document.getElementById("payPaid").value) || 0;
+    
+    await fetch(`${API_URL}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            Name: name,
+            Specialization: specialization,
+            NumberOfDays: days,
+            DailyAmount: daily,
+            Total: total,
+            Paid: paid,
+            CampId: parseInt(campId)
+        })
+    });
+    
+    // مسح الحقول
+    document.getElementById("payName").value = "";
+    document.getElementById("paySpecialization").value = "";
+    document.getElementById("payDays").value = "";
+    document.getElementById("payDaily").value = "";
+    document.getElementById("payTotal").value = "";
+    document.getElementById("payPaid").value = "";
+    document.getElementById("payRemaining").value = "";
+    
+    loadPayments();
+    alert("✅ تم إضافة المستحق بنجاح");
+}
+
+// جلب وعرض المستحقات
+async function loadPayments() {
+    let campId = localStorage.getItem("campId");
+    if (!campId) return;
+    
+    let res = await fetch(`${API_URL}/payments/${campId}`);
+    let data = await res.json();
+    let paymentsTable = document.getElementById("paymentsTableBody");
+    paymentsTable.innerHTML = "";
+    
+    let totalAll = 0, totalPaidAll = 0, totalRemainingAll = 0;
+    
+    data.forEach(p => {
+        let remaining = p.Total - p.Paid;
+        totalAll += p.Total;
+        totalPaidAll += p.Paid;
+        totalRemainingAll += remaining;
+        
+        paymentsTable.innerHTML += `
+            <tr id="payment-row-${p.Id}">
+                <td><input type="text" id="edit-name-${p.Id}" value="${p.Name}" style="width:120px"></td>
+                <td><input type="text" id="edit-spec-${p.Id}" value="${p.Specialization || ''}" style="width:120px"></td>
+                <td><input type="number" id="edit-days-${p.Id}" value="${p.NumberOfDays || 0}" step="1" style="width:80px" onchange="updatePaymentRow(${p.Id})"></td>
+                <td><input type="number" id="edit-daily-${p.Id}" value="${p.DailyAmount || 0}" step="0.01" style="width:100px" onchange="updatePaymentRow(${p.Id})"></td>
+                <td><input type="number" id="edit-total-${p.Id}" value="${p.Total}" step="0.01" style="width:100px" onchange="updatePaymentRemaining(${p.Id})"></td>
+                <td><input type="number" id="edit-paid-${p.Id}" value="${p.Paid}" step="0.01" style="width:100px" onchange="updatePaymentRemaining(${p.Id})"></td>
+                <td id="edit-remaining-${p.Id}" style="background:#ffebee; font-weight:bold;">${remaining.toFixed(2)}</td>
+                <td><button class="info" onclick="updatePayment(${p.Id})">💾 حفظ</button></td>
+                <td><button class="danger" onclick="deletePayment(${p.Id})">🗑️ حذف</button></td>
+            </tr>
+        `;
+    });
+    
+    // إضافة صف الإجماليات
+    document.getElementById("paymentsFooter").innerHTML = `
+        <tr>
+            <td colspan="4"><strong>الإجمالي العام</strong></td>
+            <td><strong>${totalAll.toFixed(2)}</strong></td>
+            <td><strong>${totalPaidAll.toFixed(2)}</strong></td>
+            <td><strong>${totalRemainingAll.toFixed(2)}</strong></td>
+            <td colspan="2"></td>
+        </tr>
+    `;
+}
+
+// تحديث صف واحد (إعادة حساب الإجمالي والمتبقي)
+function updatePaymentRow(id) {
+    let days = parseFloat(document.getElementById(`edit-days-${id}`).value) || 0;
+    let daily = parseFloat(document.getElementById(`edit-daily-${id}`).value) || 0;
+    let total = days * daily;
+    document.getElementById(`edit-total-${id}`).value = total.toFixed(2);
+    updatePaymentRemaining(id);
+}
+
+// تحديث المتبقي عند تغيير الإجمالي أو المدفوع
+function updatePaymentRemaining(id) {
+    let total = parseFloat(document.getElementById(`edit-total-${id}`).value) || 0;
+    let paid = parseFloat(document.getElementById(`edit-paid-${id}`).value) || 0;
+    let remaining = total - paid;
+    document.getElementById(`edit-remaining-${id}`).innerText = remaining.toFixed(2);
+}
+
+// حفظ التعديلات
+async function updatePayment(id) {
+    let name = document.getElementById(`edit-name-${id}`).value;
+    let specialization = document.getElementById(`edit-spec-${id}`).value;
+    let days = parseFloat(document.getElementById(`edit-days-${id}`).value) || 0;
+    let daily = parseFloat(document.getElementById(`edit-daily-${id}`).value) || 0;
+    let total = parseFloat(document.getElementById(`edit-total-${id}`).value) || (days * daily);
+    let paid = parseFloat(document.getElementById(`edit-paid-${id}`).value) || 0;
+    
+    await fetch(`${API_URL}/payments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            Name: name,
+            Specialization: specialization,
+            NumberOfDays: days,
+            DailyAmount: daily,
+            Total: total,
+            Paid: paid
+        })
+    });
+    
+    alert("✅ تم تحديث المستحق");
+    loadPayments();
+}
+
+// حذف مستحق
+async function deletePayment(id) {
+    if (confirm("هل تريد حذف هذا المستحق؟")) {
+        await fetch(`${API_URL}/payments/${id}`, { method: 'DELETE' });
+        loadPayments();
+        alert("✅ تم الحذف");
+    }
+}
+	// مزامنة الرصيد السابق من المخيم السابق إلى المخيم الحالي
+async function syncBeforeQty() {
+    let campId = localStorage.getItem("campId");
+    if (!campId) {
+        alert("يرجى اختيار مخيم أولاً");
+        return;
+    }
+    
+    let res = await fetch(`${API_URL}/sync-camp-balance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentCampId: parseInt(campId) })
+    });
+    let result = await res.json();
+    
+    if (result.success) {
+        alert(result.message);
+        loadInventory(); // تحديث الجرد لإظهار القيم الجديدة
+    } else {
+        alert(result.message || "حدث خطأ أثناء المزامنة");
+    }
+}
+
+    async function updatePayment(id) {
+        let total = parseFloat(document.getElementById(`total-${id}`).value) || 0;
+        let paid = parseFloat(document.getElementById(`paid-${id}`).value) || 0;
+        
+        await fetch(`${API_URL}/payments/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ Total: total, Paid: paid })
+        });
+        loadPayments();
+    }
+
+    async function deletePayment(id) {
+        if (confirm("هل تريد حذف هذا المستحق؟")) {
+            await fetch(`${API_URL}/payments/${id}`, { method: 'DELETE' });
+            loadPayments();
+        }
+    }
+// ========== دوال المزامنة ==========
+
+// تحميل المخيمات في قوائم المزامنة
+async function loadCampsForSync() {
+    let res = await fetch(`${API_URL}/camps`);
+    let camps = await res.json();
+    
+    let sourceSelect = document.getElementById("sourceCampSelect");
+    let targetSelect = document.getElementById("targetCampSelect");
+    
+    sourceSelect.innerHTML = '<option value="">اختر المخيم المصدر</option>';
+    targetSelect.innerHTML = '<option value="">اختر المخيم الهدف</option>';
+    
+    camps.forEach(camp => {
+        let option = `<option value="${camp.Id}">${camp.Name} (${camp.StartDate || 'بدون تاريخ'})</option>`;
+        sourceSelect.innerHTML += option;
+        targetSelect.innerHTML += option;
+    });
+}
+
+// مزامنة الرصيد من مخيم إلى آخر
+async function syncToNewCamp() {
+    let sourceCampId = document.getElementById("sourceCampSelect").value;
+    let targetCampId = document.getElementById("targetCampSelect").value;
+    
+    if (!sourceCampId || !targetCampId) {
+        alert("الرجاء اختيار المخيم المصدر والمخيم الهدف");
+        return;
+    }
+    
+    if (sourceCampId === targetCampId) {
+        alert("لا يمكن المزامنة بين نفس المخيم");
+        return;
+    }
+    
+    let confirmMsg = confirm(`هل أنت متأكد من مزامنة الرصيد؟
+المخيم المصدر: ${sourceCampId}
+المخيم الهدف: ${targetCampId}
+سيتم جعل الرصيد السابق للمخيم الهدف = الرصيد النهائي للمخيم المصدر`);
+    
+    if (!confirmMsg) return;
+    
+    let res = await fetch(`${API_URL}/sync-to-new-camp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            fromCampId: parseInt(sourceCampId),
+            toCampId: parseInt(targetCampId)
+        })
+    });
+    
+    let result = await res.json();
+    if (result.success) {
+        alert(result.message);
+        // تحديث قوائم المخيمات
+        loadCamps();
+        loadCampsForSync();
+    } else {
+        alert("خطأ: " + result.error);
+    }
+}
+
+// تعديل دالة loadCamps لتحديث قوائم المزامنة أيضاً
+async function loadCamps() {
+    let res = await fetch(`${API_URL}/camps`);
+    currentCamps = await res.json();
+    let campSelect = document.getElementById("campSelect");
+    campSelect.innerHTML = '<option value="">اختر مخيماً</option>';
+    currentCamps.forEach(c => {
+        let dateStr = c.StartDate ? ` (${c.StartDate})` : '';
+        campSelect.innerHTML += `<option value="${c.Id}">${c.Name}${dateStr} - ${c.CasesCount || 0} حالة</option>`;
+    });
+    
+    // تحديث قوائم المزامنة
+    loadCampsForSync();
+}
+async function ImportItemsFromExcel(workbook) {
+    const sheetName = "الاصناف";
+    const worksheet = workbook.Sheets[sheetName];
+    
+    if (!worksheet) {
+        alert("خطأ: ورقة 'الاصناف' غير موجودة في ملف الإكسل!");
+        return;
+    }
+
+    // تحويل البيانات إلى مصفوفة (تخطي الصف الأول للعناوين)
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 1 });
+
+    for (const row of jsonData) {
+        // التحقق من أن الصف ليس فارغاً (العمود الأول 'م' ليس فارغاً) [cite: 2]
+        if (row[0] === undefined || row[0] === "") continue;
+
+        const item = {
+            name:      row[1], // اسم الصنف (العمود B) [cite: 2]
+            unit:      row[2], // الوحدة (العمود C) [cite: 2]
+            price:     row[3], // السعر (العمود D) [cite: 2]
+            available: row[4], // الكمية المتاحة (العمود E) [cite: 2]
+            required:  row[5]  // الكمية المطلوبة (العمود F) [cite: 3]
+        };
+
+        // ملاحظة: في JavaScript المتصفح، ستحتاج لإرسال هذه البيانات عبر API إلى السيرفر
+        console.log("جاري استيراد صنف:", item);
+        await saveItemToDB(item); 
+    }
+    alert("تمت معالجة بيانات الأصناف بنجاح!");
+}
+// دالة التشغيل الرئيسية
+async function handleFileUpload(event, type) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        if (type === 'items') {
+            await ImportItemsFromExcel(workbook);
+        } else if (type === 'payments') {
+            await ImportPaymentsFromExcel(workbook);
+        } else if (type === 'inventory') {
+            await ImportInventoryFromExcel(workbook); // الدالة التي شرحناها سابقاً
+        } else if (type === 'purchases') {
+            await ImportPurchasesFromExcel(workbook);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+async function ImportPaymentsFromExcel(workbook) {
+    const sheetName = "المستحقات";
+    const worksheet = workbook.Sheets[sheetName];
+
+    if (!worksheet) {
+        alert("خطأ: ورقة 'المستحقات' غير موجودة!");
+        return;
+    }
+
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 1 });
+
+    for (const row of jsonData) {
+        if (row[0] === undefined || row[0] === "") continue;
+
+        const payment = {
+            payName:           row[1], // الاسم (العمود B)
+            paySpecialization: row[2], // التخصص (العمود C)
+            payDays:           row[3], // عدد الأيام (العمود D)
+            payDaily:          row[4], // المستحق اليومي (العمود E)
+            payTotal:          row[5], // الإجمالي (العمود F)
+            payPaid:           row[6], // المنصرف (العمود G)
+           
+            campId:            row[8] || 1 // رقم المخيم (العمود I)
+        };
+
+        console.log("جاري استيراد مستحقات:", payment);
+        await savePaymentToDB(payment);
+    }
+    alert("تمت معالجة بيانات المستحقات بنجاح!");
+}
+
+async function ImportPurchasesFromExcel(workbook) {
+    const sheetName = "المشتريات";
+    const worksheet = workbook.Sheets[sheetName];
+
+    if (!worksheet) {
+        alert("خطأ: ورقة 'المشتريات' غير موجودة!");
+        return;
+    }
+
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 1 });
+
+    for (const row of jsonData) {
+        if (row[0] === undefined || row[0] === "") continue;
+
+        const purchases = {
+            itemId: row[1],      // اسم الصنف (لازم تحوله إلى ID لاحقاً)
+            purQty: row[3],      // العدد
+            purPrice: row[4],    // السعر
+            campId: row[6] || 1,
+            PurDate: row[7]
+        };
+
+        console.log("جاري استيراد مشتريات:", purchases);
+        await savePurchaseToDB(purchases);
+    }
+    alert("تمت معالجة بيانات المشتريات بنجاح!");
+}
+
+async function importInventoryFromExcel(fileElement) {
+    const file = fileElement.files[0];
+    if (!file) {
+        alert("يرجى اختيار ملف أولاً!");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        // التأكد من وجود ورقة "الجرد"
+        const sheetName = "الجرد";
+        if (!workbook.SheetNames.includes(sheetName)) {
+            alert("خطأ: ورقة 'الجرد' غير موجودة في الملف!");
+            return;
+        }
+
+        const worksheet = workbook.Sheets[sheetName];
+        // تحويل البيانات إلى تنسيق JSON (مصفوفة كائنات)
+        // range: 1 تعني تخطي الصف الأول (العناوين) والبدء من الصف الثاني 
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 1 });
+
+        for (const row of jsonData) {
+            // row[0] = م (تسلسل)
+            // row[1] = رقم الصنف (itemId)
+            // row[2] = رقم المخيم (campId)
+            // row[3] = رصيد أول المخيم (beforeQty)
+            // row[4] = رصيد آخر المخيم (afterQty)
+            
+            if (row[0] !== undefined && row[1] !== undefined) {
+                const itemId = row[1];
+                const campId = row[2];
+                const beforeQty = row[3];
+                const afterQty = row[4];
+
+                // هنا تقوم بإرسال البيانات إلى قاعدة البيانات الخاصة بك
+                // إذا كنت تستخدم API (Backend) سيكون الكود كالتالي:
+                await saveDataToDatabase({ itemId, campId, beforeQty, afterQty });
+            }
+        }
+        alert("تمت معالجة البيانات بنجاح!");
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+// دالة إرسال البيانات للسيرفر
+async function saveDataToDatabase(data) {
+    console.log("جاري حفظ البيانات:", data);
+    
+    try {
+        const response = await fetch(`${API_URL}/inventory`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ItemId: parseInt(data.itemId),
+                CampId: parseInt(data.campId),
+                BeforeQty: parseFloat(data.beforeQty) || 0,
+                AfterQty: parseFloat(data.afterQty) || 0
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            console.log(`✅ تم حفظ الصنف ${data.itemId} للمخيم ${data.campId}`);
+        } else {
+            console.error(`❌ خطأ في حفظ الصنف ${data.itemId}:`, result.error);
+        }
+    } catch (error) {
+        console.error('❌ خطأ في الاتصال بالسيرفر:', error);
+    }
+}
+
+// دالة حفظ الأصناف في قاعدة البيانات
+async function saveItemToDB(item) {
+    try {
+        const response = await fetch(`${API_URL}/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                Name: item.name,
+                Unit: item.unit,
+                Price: parseFloat(item.price) || 0,
+                RequiredQty: parseFloat(item.required) || 0
+            })
+        });
+        
+        const result = await response.json();
+        if (result.Id) {
+            console.log(`✅ تم حفظ الصنف: ${item.name}`);
+        } else {
+            console.error(`❌ خطأ في حفظ الصنف:`, result.error);
+        }
+    } catch (error) {
+        console.error('❌ خطأ في الاتصال بالسيرفر:', error);
+    }
+}
+
+// دالة حفظ المستحقات في قاعدة البيانات
+async function savePaymentToDB(payment) {
+    try {
+        const response = await fetch(`${API_URL}/payments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                Name: payment.payName,
+                Specialization: payment.paySpecialization || '',
+                NumberOfDays: parseInt(payment.payDays) || 0,
+                DailyAmount: parseFloat(payment.payDaily) || 0,
+                Total: parseFloat(payment.payTotal) || 0,
+                Paid: parseFloat(payment.payPaid) || 0,
+
+                CampId: parseInt(payment.campId)
+            })
+        });
+        
+        const result = await response.json();
+        if (result.Id) {
+            console.log(`✅ تم حفظ المستحق: ${payment.payName}`);
+        } else {
+            console.error(`❌ خطأ في حفظ المستحق:`, result.error);
+        }
+    } catch (error) {
+        console.error('❌ خطأ في الاتصال بالسيرفر:', error);
+    }
+}
+async function savePurchaseToDB(purchases) {
+    try {
+        const response = await fetch(`${API_URL}/purchases`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ItemId: parseInt(purchases.itemId),          // رقم الصنف
+                Qty: parseFloat(purchases.purQty) || 0,      // الكمية
+                Price: parseFloat(purchases.purPrice) || 0,  // السعر
+                CampId: parseInt(purchases.campId) || 1,     // المخيم
+                Date: purchases.PurDate                      // التاريخ
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success || result.Id) {
+            console.log(`✅ تم حفظ المشتريات للصنف ID: ${purchases.itemId}`);
+        } else {
+            console.error(`❌ خطأ في الحفظ:`, result.error);
+        }
+
+    } catch (error) {
+        console.error('❌ خطأ في الاتصال بالسيرفر:', error);
+    }
+}
+// دالة استيراد الجرد من Excel
+async function ImportInventoryFromExcel(workbook) {
+    const sheetName = "الجرد";
+    const worksheet = workbook.Sheets[sheetName];
+
+    if (!worksheet) {
+        alert("خطأ: ورقة 'الجرد' غير موجودة!");
+        return;
+    }
+
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 1 });
+
+    for (const row of jsonData) {
+        if (row[0] === undefined || row[0] === "") continue;
+
+        const itemId = row[1];
+        const campId = row[2];
+        const beforeQty = row[3];
+        const afterQty = row[4];
+
+        if (itemId && campId) {
+            await saveDataToDatabase({ itemId, campId, beforeQty, afterQty });
+        }
+    }
+    alert("تم استيراد بيانات الجرد بنجاح!");
+}
+// تعديل دالة createCamp لإعادة تحميل قوائم المزامنة
+async function createCamp() {
+    if (!campName.value) return alert("أدخل اسم المخيم");
+    let cases = parseInt(campCases.value) || 0;
+    await fetch(`${API_URL}/camps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            Name: campName.value,
+            StartDate: campDate.value,
+            EndDate: campDate.value,
+            CasesCount: cases
+        })
+    });
+    loadCamps();
+    loadCampsForSync();  // تحديث قوائم المزامنة
+    campName.value = "";
+    campCases.value = "";
+    alert("✅ تم إنشاء المخيم");
+}
+    // ========== التقارير ==========
+    async function showLowStockReport() {
+        let res = await fetch(`${API_URL}/report/low-stock?threshold=10`);
+        let items = await res.json();
+        let html = `
+            <h3>⚠️ الأصناف ذات المخزون المنخفض (أقل من 10)</h3>
+            <table border="1">
+                <thead><tr><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th></tr></thead>
+                <tbody>
+        `;
+        items.forEach(item => {
+            html += `<tr><td>${item.Name}</td><td>${item.Unit}</td><td style="color:red">${item.AvailableQty}</td><td>${item.Price} ريال</td></tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById("reportContent").innerHTML = html;
+    }
+
+    async function showAvailableStockReport() {
+        let res = await fetch(`${API_URL}/report/available`);
+        let items = await res.json();
+        let totalValue = items.reduce((sum, item) => sum + (item.AvailableQty * item.Price), 0);
+        let html = `
+            <h3>📦 المخزون المتوفر</h3>
+            <p><strong>القيمة الإجمالية: ${totalValue.toFixed(2)} ريال</strong></p>
+            <table border="1">
+                <thead><tr><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th><th>القيمة</th><th>معيار/حالة</th></tr></thead>
+                <tbody>
+        `;
+        items.forEach(item => {
+            html += `<tr>
+                <td>${item.Name}</td>
+                <td>${item.Unit}</td>
+                <td>${item.AvailableQty}</td>
+                <td>${item.Price} ريال</td>
+                <td>${(item.AvailableQty * item.Price).toFixed(2)} ريال</td>
+                <td>${item.StandardPerCase || 0}</td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById("reportContent").innerHTML = html;
+    }
+
+    async function showAllInventoryReport() {
+        let campId = localStorage.getItem("campId");
+        if (!campId) return alert("اختر مخيماً أولاً");
+        let res = await fetch(`${API_URL}/inventory/${campId}`);
+        let data = await res.json();
+        let html = `
+            <h3>📊 تقرير الجرد الكامل</h3>
+            <table border="1">
+                <thead><tr><th>م</th><th>الصنف</th><th>السعر</th><th>الرصيد السابق</th><th>الرصيد النهائي</th><th>الاستهلاك</th><th>المطلوب للعمل</th><th>المطلوب للشراء</th></tr></thead>
+                <tbody>
+        `;
+        data.forEach((item, idx) => {
+            let consumption = (item.BeforeQty || 0) - (item.AfterQty || 0);
+            let toPurchase = (item.RequiredForWork || 0) - (item.AfterQty || 0);
+            if (toPurchase < 0) toPurchase = 0;
+            html += `<tr>
+                <td>${idx+1}</td>
+                <td>${item.Name}</td>
+                <td>${item.Price || 0} ريال</td>
+                <td>${item.BeforeQty || 0}</td>
+                <td>${item.AfterQty || 0}</td>
+                <td>${consumption}</td>
+                <td>${item.RequiredForWork || 0}</td>
+                <td>${toPurchase}</td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById("reportContent").innerHTML = html;
+    }
+
+    async function showStandardsReport() {
+        let res = await fetch(`${API_URL}/items`);
+        let items = await res.json();
+        let html = `
+            <h3>📋 المعايير القياسية لكل صنف</h3>
+            <table border="1">
+                <thead><tr><th>م</th><th>اسم الصنف</th><th>الوحدة</th><th>المعيار لكل حالة</th><th>السعر</th></tr></thead>
+                <tbody>
+        `;
+        items.forEach((item, idx) => {
+            html += `<tr>
+                <td>${idx+1}</td>
+                <td>${item.Name}</td>
+                <td>${item.Unit}</td>
+                <td>${item.StandardPerCase || 0}</td>
+                <td>${item.Price || 0} ريال</td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById("reportContent").innerHTML = html;
+    }
+
+    // ========== تصدير وطباعة ==========
+    function exportInventoryToExcel() {
+        let campId = localStorage.getItem("campId");
+        let campName = document.getElementById("invCampName").innerText;
+        let table = document.getElementById("inventoryMainTable");
+        let html = `
+            <html dir="rtl">
+            <head><meta charset="UTF-8"><title>جرد المخيم</title></head>
+            <body><h2>جرد المخيم: ${campName}</h2>${table.outerHTML}</body>
+            </html>
+        `;
+        let blob = new Blob([html], { type: "application/vnd.ms-excel" });
+        let link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `جرد_المخيم_${campId}.xls`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+// ========== المستحقات (Payments) ==========
+
+let showClosed = false;
+
+// حساب الإجمالي تلقائياً
+function calculatePaymentTotal() {
+    let days = parseFloat(document.getElementById("payDays").value) || 0;
+    let daily = parseFloat(document.getElementById("payDaily").value) || 0;
+    let total = days * daily;
+    document.getElementById("payTotal").value = total.toFixed(2);
+    calculateRemaining();
+}
+
+// حساب المتبقي تلقائياً
+function calculateRemaining() {
+    let total = parseFloat(document.getElementById("payTotal").value) || 0;
+    let paid = parseFloat(document.getElementById("payPaid").value) || 0;
+    let remaining = total - paid;
+    document.getElementById("payRemaining").value = remaining.toFixed(2);
+}
+
+// إضافة مستحق جديد
+async function addPayment() {
+    let campId = localStorage.getItem("campId");
+    if (!campId) return alert("اختر مخيماً أولاً");
+    
+    let name = document.getElementById("payName").value;
+    if (!name) return alert("أدخل الإسم");
+    
+    let specialization = document.getElementById("paySpecialization").value;
+    let days = parseFloat(document.getElementById("payDays").value) || 0;
+    let daily = parseFloat(document.getElementById("payDaily").value) || 0;
+    let total = parseFloat(document.getElementById("payTotal").value) || (days * daily);
+    let paid = parseFloat(document.getElementById("payPaid").value) || 0;
+    
+    await fetch(`${API_URL}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            Name: name,
+            Specialization: specialization,
+            NumberOfDays: days,
+            DailyAmount: daily,
+            Total: total,
+            Paid: paid,
+            CampId: parseInt(campId)
+        })
+    });
+    
+    // مسح الحقول
+    document.getElementById("payName").value = "";
+    document.getElementById("paySpecialization").value = "";
+    document.getElementById("payDays").value = "";
+    document.getElementById("payDaily").value = "";
+    document.getElementById("payTotal").value = "";
+    document.getElementById("payPaid").value = "";
+    document.getElementById("payRemaining").value = "";
+    
+    loadPayments();
+    alert("✅ تم إضافة المستحق بنجاح");
+}
+
+// عرض المستحقات المغلقة
+function showClosedPayments() {
+    showClosed = true;
+    loadPayments();
+}
+
+// إخفاء المستحقات المغلقة
+function hideClosedPayments() {
+    showClosed = false;
+    loadPayments();
+}
+
+// جلب وعرض المستحقات
+async function loadPayments() {
+    let campId = localStorage.getItem("campId");
+    if (!campId) return;
+    
+    let url = `${API_URL}/payments/${campId}`;
+    if (showClosed) {
+        url += "?showClosed=true";
+    }
+    
+    let res = await fetch(url);
+    let data = await res.json();
+    let paymentsTable = document.getElementById("paymentsTableBody");
+    paymentsTable.innerHTML = "";
+    
+    let totalAll = 0, totalPaidAll = 0, totalRemainingAll = 0;
+    
+    data.forEach(p => {
+        let remaining = p.Total - p.Paid;
+        totalAll += p.Total;
+        totalPaidAll += p.Paid;
+        totalRemainingAll += remaining;
+        
+        let statusBadge = p.ClosedBalance === 1 
+            ? '<span style="background:#4CAF50; color:white; padding:3px 8px; border-radius:5px;">✅ مغلق</span>'
+            : '<span style="background:#ff9800; color:white; padding:3px 8px; border-radius:5px;">🟡 مفتوح</span>';
+        
+        paymentsTable.innerHTML += `
+            <tr id="payment-row-${p.Id}" style="${p.ClosedBalance === 1 ? 'background:#e8f5e9;' : ''}">
+                <td>${p.TransNo || '-'}</td>
+                <td><input type="text" id="edit-name-${p.Id}" value="${p.Name}" style="width:120px" ${p.ClosedBalance === 1 ? 'disabled' : ''}></td>
+                <td><input type="text" id="edit-spec-${p.Id}" value="${p.Specialization || ''}" style="width:120px" ${p.ClosedBalance === 1 ? 'disabled' : ''}></td>
+                <td><input type="number" id="edit-days-${p.Id}" value="${p.NumberOfDays || 0}" step="1" style="width:70px" onchange="updatePaymentRow(${p.Id})" ${p.ClosedBalance === 1 ? 'disabled' : ''}></td>
+                <td><input type="number" id="edit-daily-${p.Id}" value="${p.DailyAmount || 0}" step="0.01" style="width:90px" onchange="updatePaymentRow(${p.Id})" ${p.ClosedBalance === 1 ? 'disabled' : ''}></td>
+                <td><input type="number" id="edit-total-${p.Id}" value="${p.Total}" step="0.01" style="width:90px" onchange="updatePaymentRemaining(${p.Id})" ${p.ClosedBalance === 1 ? 'disabled' : ''}></td>
+                <td><input type="number" id="edit-paid-${p.Id}" value="${p.Paid}" step="0.01" style="width:90px" onchange="updatePaymentRemaining(${p.Id})" ${p.ClosedBalance === 1 ? 'disabled' : ''}></td>
+                <td id="edit-remaining-${p.Id}" style="background:#ffebee; font-weight:bold;">${remaining.toFixed(2)}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    ${p.ClosedBalance === 0 ? `<button class="info" onclick="updatePayment(${p.Id})">💾 حفظ</button>
+                    <button class="warning" onclick="closePayment(${p.Id})">🔒 إغلاق</button>` : 
+                    `<button class="info" onclick="reopenPayment(${p.Id})">🔓 إعادة فتح</button>`}
+                </td>
+                <td><button class="danger" onclick="deletePayment(${p.Id})">🗑️</button></td>
+            </tr>
+        `;
+    });
+    
+    // إضافة صف الإجماليات
+    document.getElementById("paymentsFooter").innerHTML = `
+        <tr>
+            <td colspan="6"><strong>الإجمالي العام</strong></td>
+            <td><strong>${totalAll.toFixed(2)}</strong></td>
+            <td><strong>${totalPaidAll.toFixed(2)}</strong></td>
+            <td><strong>${totalRemainingAll.toFixed(2)}</strong></td>
+            <td colspan="3"></td>
+        </tr>
+    `;
+}
+
+// إغلاق مستحق (تصفية الحساب)
+async function closePayment(id) {
+    if (confirm("هل تريد إغلاق هذا المستحق؟ سيتم اعتبار المبلغ المتبقي مغلقاً.")) {
+        await fetch(`${API_URL}/payments/close/${id}`, { method: 'PUT' });
+        alert("✅ تم إغلاق المستحق");
+        loadPayments();
+    }
+}
+
+// إعادة فتح مستحق
+async function reopenPayment(id) {
+    if (confirm("هل تريد إعادة فتح هذا المستحق؟")) {
+        await fetch(`${API_URL}/payments/reopen/${id}`, { method: 'PUT' });
+        alert("✅ تم إعادة فتح المستحق");
+        loadPayments();
+    }
+}
+
+// تحديث صف واحد
+function updatePaymentRow(id) {
+    let days = parseFloat(document.getElementById(`edit-days-${id}`).value) || 0;
+    let daily = parseFloat(document.getElementById(`edit-daily-${id}`).value) || 0;
+    let total = days * daily;
+    document.getElementById(`edit-total-${id}`).value = total.toFixed(2);
+    updatePaymentRemaining(id);
+}
+
+// تحديث المتبقي
+function updatePaymentRemaining(id) {
+    let total = parseFloat(document.getElementById(`edit-total-${id}`).value) || 0;
+    let paid = parseFloat(document.getElementById(`edit-paid-${id}`).value) || 0;
+    let remaining = total - paid;
+    document.getElementById(`edit-remaining-${id}`).innerText = remaining.toFixed(2);
+}
+
+// حفظ التعديلات
+async function updatePayment(id) {
+    let name = document.getElementById(`edit-name-${id}`).value;
+    let specialization = document.getElementById(`edit-spec-${id}`).value;
+    let days = parseFloat(document.getElementById(`edit-days-${id}`).value) || 0;
+    let daily = parseFloat(document.getElementById(`edit-daily-${id}`).value) || 0;
+    let total = parseFloat(document.getElementById(`edit-total-${id}`).value) || (days * daily);
+    let paid = parseFloat(document.getElementById(`edit-paid-${id}`).value) || 0;
+    
+    await fetch(`${API_URL}/payments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            Name: name,
+            Specialization: specialization,
+            NumberOfDays: days,
+            DailyAmount: daily,
+            Total: total,
+            Paid: paid
+        })
+    });
+    
+    alert("✅ تم تحديث المستحق");
+    loadPayments();
+}
+
+// حذف مستحق
+async function deletePayment(id) {
+    if (confirm("هل تريد حذف هذا المستحق نهائياً؟")) {
+        await fetch(`${API_URL}/payments/${id}`, { method: 'DELETE' });
+        loadPayments();
+        alert("✅ تم الحذف");
+    }
+}
+
+// استيراد المستحقات من Excel (معدل)
+async function ImportPaymentsFromExcel(workbook) {
+    const sheetName = "المستحقات";
+    const worksheet = workbook.Sheets[sheetName];
+
+    if (!worksheet) {
+        alert("خطأ: ورقة 'المستحقات' غير موجودة!");
+        return;
+    }
+
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 1 });
+    const payments = [];
+    const campId = localStorage.getItem("campId");
+
+    for (const row of jsonData) {
+        if (row[0] === undefined || row[0] === "") continue;
+
+        payments.push({
+            Name: row[1],                    // الإسم
+            Specialization: row[2],          // التخصص
+            NumberOfDays: parseFloat(row[3]) || 0,   // عدد الأيام
+            DailyAmount: parseFloat(row[4]) || 0,    // المستحق اليومي
+            Total: parseFloat(row[5]) || 0,          // الإجمالي
+            Paid: parseFloat(row[6]) || 0            // المنصرف
+        });
+    }
+
+    if (payments.length === 0) {
+        alert("لا توجد بيانات للاستيراد");
+        return;
+    }
+
+    const response = await fetch(`${API_URL}/payments/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payments, campId: parseInt(campId) })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+        alert(result.message);
+        loadPayments();
+    } else {
+        alert("خطأ في الاستيراد: " + result.error);
+    }
+}
+    function printInventory() {
+        let campName = document.getElementById("invCampName").innerText;
+        let table = document.getElementById("inventoryMainTable");
+        let printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html dir="rtl">
+            <head><meta charset="UTF-8"><title>جرد المخيم</title>
+            <style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}</style>
+            </head>
+            <body><h2>جرد المخيم: ${campName}</h2>${table.outerHTML}</body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    // بدء التشغيل
+    show("loginPage");
+</script>
+</body>
+</html>
